@@ -1,0 +1,214 @@
+﻿@page "/"
+
+<h3>Calculatrice</h3>
+
+<div class="calculatrice" tabindex="0" @onkeydown="HandleKeyPress">
+
+    <input id="ecran" class="ecran" @bind="Result" readonly />
+
+    <div class="clavier">
+        <button @onclick='() => AjouterChiffre("7")'>7</button>
+        <button @onclick='() => AjouterChiffre("8")'>8</button>
+        <button @onclick='() => AjouterChiffre("9")'>9</button>
+        <button class="operateur" @onclick='() => Operer("/")'>/</button>
+
+        <button @onclick='() => AjouterChiffre("4")'>4</button>
+        <button @onclick='() => AjouterChiffre("5")'>5</button>
+        <button @onclick='() => AjouterChiffre("6")'>6</button>
+        <button class="operateur" @onclick='() => Operer("*")'>*</button>
+
+        <button @onclick='() => AjouterChiffre("1")'>1</button>
+        <button @onclick='() => AjouterChiffre("2")'>2</button>
+        <button @onclick='() => AjouterChiffre("3")'>3</button>
+        <button class="operateur" @onclick='() => Operer("-")'>-</button>
+
+        <button class="effacer" @onclick="Effacer">C</button>
+        <button @onclick='() => AjouterChiffre("0")'>0</button>
+        <button class="egal" @onclick="Calculer">=</button>
+        <button class="operateur" @onclick='() => Operer("+")'>+</button>
+    </div>
+
+    @if (Historique.Any())
+    {
+        <div class="historique">
+            <h4>Historique</h4>
+            <ul>
+                @foreach (var item in Historique)
+                {
+                    <li>@item</li>
+                }
+            </ul>
+        </div>
+    }
+</div>
+
+<style>
+    .calculatrice {
+        width: 260px;
+        margin: 30px auto;
+        padding: 20px;
+        border: 2px solid #ccc;
+        border-radius: 10px;
+        background-color: #f9f9f9;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .ecran {
+        width: 100%;
+        height: 50px;
+        font-size: 24px;
+        text-align: right;
+        margin-bottom: 15px;
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        background-color: #e6e6e6;
+    }
+
+    .clavier {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr); /* Crée 4 colonnes égales */
+        gap: 10px; /* Espacement entre les boutons */
+    }
+
+        .clavier button {
+            height: 50px;
+            font-size: 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #d0d0d0;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+            .clavier button:hover {
+                background-color: #bbb;
+            }
+
+    .operateur {
+        background-color: #4CAF50;
+        color: white;
+    }
+
+        .operateur:hover {
+            background-color: #45a049;
+        }
+
+    .egal {
+        background-color: #2196F3;
+        color: white;
+    }
+
+        .egal:hover {
+            background-color: #1976D2;
+        }
+
+    .effacer {
+        background-color: #f44336;
+        color: white;
+    }
+
+        .effacer:hover {
+            background-color: #e53935;
+        }
+</style>
+
+@code {
+    @inject IJSRuntime JS  // Injection de IJSRuntime
+
+    private string Result = "";
+    private double Nombre1;
+    private double Nombre2;
+    private string Operation = "";
+    private List<string> Historique = new();
+
+    private void AjouterChiffre(string chiffre)
+    {
+        Result += chiffre;
+    }
+
+    private void Operer(string operateur)
+    {
+        if (double.TryParse(Result, out Nombre1))
+        {
+            Operation = operateur;
+            Result = "";
+        }
+    }
+
+    private void Effacer()
+    {
+        Result = "";
+        Nombre1 = 0;
+        Nombre2 = 0;
+        Operation = "";
+    }
+
+    private void Calculer()
+    {
+        if (double.TryParse(Result, out Nombre2))
+        {
+            double calcul = 0;
+            bool erreur = false;
+            switch (Operation)
+            {
+                case "+": calcul = Nombre1 + Nombre2; break;
+                case "-": calcul = Nombre1 - Nombre2; break;
+                case "*": calcul = Nombre1 * Nombre2; break;
+                case "/":
+                    if (Nombre2 != 0)
+                        calcul = Nombre1 / Nombre2;
+                    else
+                    {
+                        Result = "Erreur";
+                        erreur = true;
+                    }
+                    break;
+            }
+
+            if (!erreur)
+            {
+                string expression = $"{Nombre1} {Operation} {Nombre2} = {calcul}";
+                Historique.Insert(0, expression);
+
+                if (Historique.Count > 5)
+                    Historique.RemoveAt(Historique.Count - 1);
+
+                Result = calcul.ToString("0.##");
+            }
+        }
+    }
+
+    // Ecoute des touches du clavier physique
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Ecoute des événements clavier
+            JS.InvokeVoidAsync("document.addEventListener", "keydown", DotNetObjectReference.Create(this));
+        }
+    }
+
+    [JSInvokable]
+    private void HandleKeyPress(KeyboardEventArgs e)
+    {
+        var key = e.Key;
+
+        if (key == "Enter")
+        {
+            Calculer();
+        }
+        else if (key == "Backspace")
+        {
+            Effacer();
+        }
+        else if ("0123456789".Contains(key))
+        {
+            AjouterChiffre(key);
+        }
+        else if ("+-*/".Contains(key))
+        {
+            Operer(key);
+        }
+    }
+}
