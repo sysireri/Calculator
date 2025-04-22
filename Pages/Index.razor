@@ -2,7 +2,7 @@
 
 <h3>Calculatrice</h3>
 
-<div class="calculatrice" tabindex="0" @onkeydown="HandleKeyPress">
+    <div class="calculatrice" tabindex="0" @onkeydown="HandleKeyPress" @onclick="FocusCalculatrice" @ref="CalculatriceDiv">
 
     <input id="ecran" class="ecran" @bind="Result" readonly />
 
@@ -67,8 +67,8 @@
 
     .clavier {
         display: grid;
-        grid-template-columns: repeat(4, 1fr); /* Crée 4 colonnes égales */
-        gap: 10px; /* Espacement entre les boutons */
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
     }
 
         .clavier button {
@@ -114,8 +114,6 @@
 </style>
 
 @code {
-    @inject IJSRuntime JS  // Injection de IJSRuntime
-
     private string Result = "";
     private double Nombre1;
     private double Nombre2;
@@ -179,26 +177,20 @@
         }
     }
 
-    // Ecoute des touches du clavier physique
-    protected override void OnAfterRender(bool firstRender)
-    {
-        if (firstRender)
-        {
-            // Ecoute des événements clavier
-            JS.InvokeVoidAsync("document.addEventListener", "keydown", DotNetObjectReference.Create(this));
-        }
-    }
-
-    [JSInvokable]
     private void HandleKeyPress(KeyboardEventArgs e)
     {
         var key = e.Key;
 
-        if (key == "Enter")
+        if (string.IsNullOrEmpty(key))
+            return;
+
+        key = key.ToLower();
+
+        if (key == "enter" || key == "=")
         {
             Calculer();
         }
-        else if (key == "Backspace")
+        else if (key == "backspace" || key == "c")
         {
             Effacer();
         }
@@ -211,4 +203,19 @@
             Operer(key);
         }
     }
+    private ElementReference CalculatriceDiv;
+
+    private async Task FocusCalculatrice()
+    {
+        await CalculatriceDiv.FocusAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await FocusCalculatrice();
+        }
+    }
+
 }
